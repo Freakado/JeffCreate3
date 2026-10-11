@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verification Override - Card Swipe</title>
+  <style>
+    :root {
+      --page-bg: #121214;
+      --card-bg: #ffffff;
+      --scanner-bg: #828a95;
+      --scanner-border: #3b4047;
+      --scanner-inset: #59616a;
+      --screen-bg: #091712;
+      --screen-text: #38ef7d;
+      --red-led: #ef4444;
+      --green-led: #22c55e;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--page-bg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .main-card {
+      background-color: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+      width: 100%;
+      max-width: 450px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-block;
+      background-color: #fee2e2;
+      color: #b91c1c;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      color: #1f2937;
+      margin-bottom: 4px;
+    }
+
+    p.subtitle {
+      color: #64748b;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+
+    /* Industrial Card Terminal */
+    .scanner-terminal {
+      background-color: var(--scanner-bg);
+      border: 4px solid var(--scanner-border);
+      border-radius: 10px;
+      padding: 16px 16px 10px 16px;
+      box-shadow: inset 0 3px 6px rgba(255,255,255,0.3), 0 8px 20px rgba(0,0,0,0.4);
+      position: relative;
+    }
+
+    /* LCD Screen & LED Header */
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background-color: #424952;
+      border: 2px solid #282c32;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 14px;
+    }
+
+    .lcd-screen {
+      flex: 1;
+      background-color: var(--screen-bg);
+      border: 2px solid #142a20;
+      border-radius: 4px;
+      padding: 8px 12px;
+      color: var(--screen-text);
+      font-family: "Courier New", Courier, monospace;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-align: left;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+    }
+
+    .led-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .led {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid #1f2429;
+      background-color: #2b1d1d;
+    }
+
+    .led.red.active {
+      background-color: var(--red-led);
+      box-shadow: 0 0 10px var(--red-led);
+    }
+
+    .led.green.active {
+      background-color: var(--green-led);
+      box-shadow: 0 0 10px var(--green-led);
+    }
+
+    /* Card Swipe Track */
+    .swipe-track {
+      position: relative;
+      height: 120px;
+      background-color: var(--scanner-inset);
+      border: 3px solid #2c3238;
+      border-radius: 6px;
+      overflow: hidden;
+      touch-action: none;
+      margin-bottom: 10px;
+    }
+
+    .slot-line {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 10px;
+      background-color: #1a1e22;
+      transform: translateY(-50%);
+      border-top: 1px solid #111;
+      border-bottom: 1px solid #3e444b;
+    }
+
+    /* Draggable ID Badge */
+    .swipe-card {
+      position: absolute;
+      top: 12px;
+      left: 8px;
+      width: 135px;
+      height: 96px;
+      background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%);
+      border: 2px solid #9ca3af;
+      border-radius: 6px;
+      box-shadow: 2px 4px 10px rgba(0,0,0,0.5);
+      cursor: grab;
+      display: flex;
+      flex-direction: column;
+      padding: 6px 8px;
+      z-index: 5;
+    }
+
+    .swipe-card:active {
+      cursor: grabbing;
+    }
+
+    .card-strip {
+      height: 12px;
+      background-color: #1f2937;
+      border-radius: 2px;
+      margin-bottom: 6px;
+    }
+
+    .card-photo-box {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .card-avatar {
+      width: 32px;
+      height: 32px;
+      background-color: #3b82f6;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.1rem;
+    }
+
+    .card-meta {
+      text-align: left;
+      font-size: 0.62rem;
+      color: #4b5563;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .card-meta span {
+      display: block;
+      color: #111827;
+      font-size: 0.7rem;
+    }
+
+    /* Authentic Wallet Graphic Tray */
+    .wallet-tray {
+      width: 100%;
+      height: 110px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 2px solid #2c3238;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.4);
+      background-color: #1a1e24;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .wallet-tray img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center bottom;
+      pointer-events: none;
+    }
+
+    .wallet-label {
+      position: absolute;
+      bottom: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #e5e7eb;
+      text-shadow: 1px 1px 2px #000;
+      letter-spacing: 0.1em;
+    }
+
+    .status-msg {
+      margin-top: 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      min-height: 20px;
+    }
+
+    .status-msg.error { color: #ef4444; }
+    .status-msg.success { color: #16a34a; }
+  </style>
+</head>
+<body>
+
+<div class="main-card">
+  <div class="badge" id="artifact-badge">Security Terminal</div>
+  <h1>Admin Clearance</h1>
+  <p class="subtitle">Swipe admin card at calibrated speed to authorize robot override.</p>
+
+  <div class="scanner-terminal">
+    <div class="terminal-header">
+      <div class="lcd-screen" id="lcd">PLEASE SWIPE CARD.</div>
+      <div class="led-group">
+        <div class="led red active" id="led-red"></div>
+        <div class="led green" id="led-green"></div>
+      </div>
+    </div>
+
+    <!-- Swipe Track -->
+    <div class="swipe-track" id="track">
+      <div class="slot-line"></div>
+      <div class="swipe-card" id="card">
+        <div class="card-strip"></div>
+        <div class="card-photo-box">
+          <div class="card-avatar">🤖</div>
+          <div class="card-meta">
+            CREW ID:
+            <span id="card-tag-text">#10</span>
+            STATUS: <span>ACTIVE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wallet Tray Image -->
+    <div class="wallet-tray">
+      <img src="/assets/puzzles/card/wallet.png" alt="Admin Wallet">
+      <div class="wallet-label">ADMIN WALLET</div>
+    </div>
+  </div>
+
+  <div class="status-msg" id="status-msg"></div>
+</div>
+
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  const tagId = parseInt(urlParams.get('tag') || '10', 10);
+  document.getElementById('artifact-badge').textContent = `Artifact #${tagId}`;
+  document.getElementById('card-tag-text').textContent = `#${tagId}`;
+
+  const track = document.getElementById('track');
+  const card = document.getElementById('card');
+  const lcd = document.getElementById('lcd');
+  const ledRed = document.getElementById('led-red');
+  const ledGreen = document.getElementById('led-green');
+  const statusMsg = document.getElementById('status-msg');
+
+  let minMs = 450;
+  let maxMs = 1100;
+
+  let isDragging = false;
+  let startX = 0;
+  let startTime = 0;
+  let trackWidth = 0;
+  let cardWidth = 0;
+  let maxOffset = 0;
+  let currentOffset = 0;
+  let solved = false;
+
+  async function loadConfig() {
+    try {
+      const resp = await fetch(`/api/puzzle_data/${tagId}?type=card`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.min_ms) minMs = data.min_ms;
+        if (data.max_ms) maxMs = data.max_ms;
+      }
+    } catch (e) {
+      console.warn("Using default swipe bounds", e);
+    }
+  }
+
+  function updateBounds() {
+    trackWidth = track.clientWidth;
+    cardWidth = card.clientWidth;
+    maxOffset = trackWidth - cardWidth - 16;
+  }
+
+  function setLcd(text, isSuccess = false) {
+    lcd.textContent = text;
+    if (isSuccess) {
+      ledRed.classList.remove('active');
+      ledGreen.classList.add('active');
+      lcd.style.color = '#38ef7d';
+    } else {
+      ledRed.classList.add('active');
+      ledGreen.classList.remove('active');
+      lcd.style.color = text.includes('TRY') ? '#f87171' : '#38ef7d';
+    }
+  }
+
+  card.addEventListener('pointerdown', (e) => {
+    if (solved) return;
+    updateBounds();
+    isDragging = true;
+    startX = e.clientX;
+    startTime = performance.now();
+    card.setPointerCapture(e.pointerId);
+    setLcd("READING CARD...");
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    if (!isDragging || solved) return;
+    const dx = e.clientX - startX;
+    currentOffset = Math.max(0, Math.min(maxOffset, dx));
+    card.style.transform = `translateX(${currentOffset}px)`;
+  });
+
+  window.addEventListener('pointerup', async (e) => {
+    if (!isDragging || solved) return;
+    isDragging = false;
+    const duration = performance.now() - startTime;
+
+    if (currentOffset < maxOffset * 0.85) {
+      resetCard();
+      setLcd("BAD READ. TRY AGAIN.");
+      return;
+    }
+
+    if (duration < minMs) {
+      resetCard();
+      setLcd("TOO FAST. TRY AGAIN.");
+    } else if (duration > maxMs) {
+      resetCard();
+      setLcd("TOO SLOW. TRY AGAIN.");
+    } else {
+      card.style.transform = `translateX(${maxOffset}px)`;
+      setLcd("ACCEPTED. THANK YOU.", true);
+      solved = true;
+      submitSuccess();
+    }
+  });
+
+  function resetCard() {
+    card.style.transition = 'transform 0.2s ease-out';
+    card.style.transform = 'translateX(0px)';
+    currentOffset = 0;
+    setTimeout(() => {
+      card.style.transition = 'none';
+    }, 200);
+  }
+
+  async function submitSuccess() {
+    statusMsg.className = 'status-msg';
+    statusMsg.textContent = 'Transmitting override to JeffCreate3...';
+
+    try {
+      const resp = await fetch('/api/solve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tag_id: tagId,
+          puzzle_name: 'card_swipe',
+          solution: `SWIPED_VALID_${tagId}`
+        })
+      });
+
+      const res = await resp.json();
+      if (res.success) {
+        statusMsg.className = 'status-msg success';
+        statusMsg.textContent = `✔ ${res.message}`;
+      } else {
+        statusMsg.className = 'status-msg error';
+        statusMsg.textContent = `❌ ${res.message}`;
+        solved = false;
+        resetCard();
+      }
+    } catch (err) {
+      statusMsg.className = 'status-msg error';
+      statusMsg.textContent = `Network error: ${err.message}`;
+      solved = false;
+      resetCard();
+    }
+  }
+
+  window.addEventListener('resize', updateBounds);
+  loadConfig();
+  updateBounds();
+</script>
+
+</body>
+</html>

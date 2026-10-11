@@ -1,0 +1,382 @@
+bt_navigator:
+  ros__parameters:
+    use_sim_time: false
+    use_stamped_vel: false
+    transform_tolerance: 0.3
+    global_frame: map
+    robot_base_frame: base_link
+    odom_topic: "odometry/filtered"
+    #default_nav_to_pose_bt_xml: "/opt/ros/jazzy/share/nav2_bt_navigator/behavior_trees/navigate_to_pose_w_replanning_only_if_path_becomes_invalid.xml"
+    #default_nav_to_pose_bt_xml: "navigate_to_pose_w_replanning_and_recovery.xml"
+    bt_loop_duration: 10
+    default_server_timeout: 40
+    wait_for_service_timeout: 5000
+    action_server_result_timeout: 900.0
+    navigators: ["navigate_to_pose", "navigate_through_poses"]
+    navigate_to_pose:
+      plugin: "nav2_bt_navigator::NavigateToPoseNavigator"
+    navigate_through_poses:
+      plugin: "nav2_bt_navigator::NavigateThroughPosesNavigator"
+
+controller_server:
+  ros__parameters:
+    use_sim_time: false
+    use_stamped_vel: false
+    odom_topic: "odometry/filtered"
+    controller_frequency: 10.0
+    min_x_velocity_threshold: 0.001
+    min_y_velocity_threshold: 0.5
+    min_theta_velocity_threshold: 0.001
+    failure_tolerance: 0.3
+    progress_checker_plugin: "progress_checker"
+    current_progress_checker: "progress_checker"
+    goal_checker_plugins: ["general_goal_checker"]
+    current_goal_checker: "general_goal_checker"
+    controller_plugins: ["FollowPath"]
+    transform_tolerance: 0.3
+
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.15       # CHANGED: Must move 15 cm
+      movement_time_allowance: 6.0         # CHANGED: 15.0 -> 6.0s (aborts spinning quickly)
+
+    general_goal_checker:
+      stateful: true
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance: 0.35              # CHANGED: 0.25 -> 0.35 gives leeway at frontiers
+      yaw_goal_tolerance: 3.14             # No in-place turning requirement on arrival
+
+    FollowPath:
+      plugin: "dwb_core::DWBLocalPlanner"
+      debug_trajectory_details: false
+      
+      # Linear velocity limits (Create 3 max linear speed is ~0.46 m/s, but 0.35–0.40 m/s offers stable control)
+      min_vel_x: 0.00
+      min_vel_y: 0.00
+      max_vel_x: 0.35
+      min_speed_xy: 0.03
+      max_speed_xy: 0.35
+      
+      # Angular velocity limits (Create 3 max angular speed is ~1.9 rad/s)
+      min_speed_theta: 0.05
+      min_vel_theta: -1.2
+      max_vel_theta: 1.2
+      
+      # Acceleration & Deceleration limits
+      acc_lim_x: 1.2
+      decel_lim_x: -1.5
+      acc_lim_theta: 2.0
+      decel_lim_theta: -2.0
+      
+      # Trajectory rollout & sampling
+      sim_time: 1.5
+      vx_samples: 12
+      vy_samples: 1
+      vtheta_samples: 25
+      linear_granularity: 0.03
+      angular_granularity: 0.03
+      # Classic rotate-to-heading: turn to face path FIRST, then drive straight
+      #rotate_to_heading_min_angle: 0.785    # 45 degrees
+      #rotate_to_heading_angular_vel: 0.4    # Turn calmly on the spot until aligned
+      prune_plan: true
+      prune_distance: 0.8
+      critics: ["Oscillation", "BaseObstacle", "PathAlign", "PathDist"]
+      BaseObstacle:
+        scale: 1.0
+      PathDist:
+        scale: 32.0
+      # GoalDist:
+      #   scale: 24.0
+      PathAlign:
+        scale: 32.0
+      # GoalAlign:
+      #   scale: 0.0
+      # RotateToGoal:
+      #   scale: 0.0
+      #   slowing_factor: 5.0
+      #   lookahead_time: -1.0
+      # Oscillation:
+      #   scale: 0.0
+      #   oscillation_reset_dist: 0.05
+      #   oscillation_reset_angle: 0.2
+      stop_on_failure: true
+
+    # FollowPath:
+    #   plugin: "dwb_core::DWBLocalPlanner"
+    #   debug_trajectory_details: false
+    #   rotate_to_heading_min_angle: 3.14    # Curves along path instead of locking into a pivot
+    #   rotate_to_heading_angular_vel: 0.0
+    #   prune_plan: true
+    #   prune_distance: 0.8
+    #   max_angular_accel: 2.0
+    #   min_vel_x: 0.05
+    #   min_vel_y: 0.0
+    #   max_vel_x: 0.22
+    #   min_speed_xy: 0.05
+    #   max_speed_xy: 0.22
+    #   min_speed_theta: 0.0
+    #   max_vel_theta: 0.8
+    #   min_vel_theta: -0.8
+    #   acc_lim_x: 2.0
+    #   acc_lim_theta: 2.5
+    #   decel_lim_x: -2.0
+    #   decel_lim_theta: -2.5
+    #   vx_samples: 15                       # CHANGED: 12 -> 15 (more forward speed candidates)
+    #   vy_samples: 1
+    #   vtheta_samples: 25                   # CHANGED: 20 -> 25 (more turn angles sampled)
+    #   disjunct_scale: 0.0
+    #   sim_time: 1.0                        # CHANGED: 1.2 -> 1.0 (shorter horizon avoids discarding tight curves)
+    #   linear_granularity: 0.05
+    #   angular_granularity: 0.025
+    #   critics: ["Oscillation", "BaseObstacle", "PathDist", "GoalDist"]
+    #   BaseObstacle:
+    #     scale: 0.5                         # CHANGED: 0.8 -> 0.5 (stops rejecting valid escaping arcs)
+    #   PathDist:
+    #     scale: 24.0                        # CHANGED: 32.0 -> 24.0
+    #   GoalDist:
+    #     scale: 18.0                        # CHANGED: 24.0 -> 18.0
+    #   Oscillation:
+    #     scale: 2.0
+    #     oscillation_reset_dist: 0.05
+    #     oscillation_reset_angle: 0.2
+    #   stop_on_failure: true
+
+velocity_smoother:
+  ros__parameters:
+    use_sim_time: false
+    use_stamped_vel: false
+    smoothing_frequency: 10.0
+    scale_velocities: false
+    feedback: "OPEN_LOOP"
+    max_velocity: [0.24, 0.0, 1.0]
+    min_velocity: [0.0, 0.0, -1.0]
+    max_accel: [2.0, 0.0, 3.0]
+    max_decel: [-2.0, 0.0, -3.0]
+    odom_topic: "odometry/filtered"
+    odom_duration: 0.1
+    deadband_velocity: [0.0, 0.0, 0.0]
+    cmd_vel_in_topic: "cmd_vel_nav"
+    cmd_vel_out_topic: "cmd_vel_smoothed"
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      update_frequency: 1.0
+      publish_frequency: 1.0
+      global_frame: map
+      robot_base_frame: base_link
+      use_sim_time: false
+      robot_radius: 0.18
+      resolution: 0.05
+      track_unknown_space: true
+      transform_tolerance: 2.0
+      plugins: ["static_layer", "inflation_layer"]      
+#plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: true
+        subscribe_to_updates: true
+        map_topic: /JeffCreate3/map
+      # obstacle_layer:
+      #   plugin: "nav2_costmap_2d::ObstacleLayer"
+      #   enabled: true
+      #   observation_sources: scan hazard_points realsense_depth
+
+      #   scan:
+      #     topic: /JeffCreate3/scan
+      #     data_type: "LaserScan"
+      #     clearing: true
+      #     marking: true
+      #     max_obstacle_height: 2.0
+      #     obstacle_max_range: 8.0
+      #     raytrace_max_range: 9.5
+      #     observation_persistence: 5.0
+
+      #   hazard_points:
+      #     topic: /JeffCreate3/hazard_points
+      #     data_type: "PointCloud2"
+      #     clearing: false
+      #     marking: true
+      #     obstacle_max_range: 2.5
+      #     min_obstacle_height: -0.05
+      #     max_obstacle_height: 0.30
+      #     raytrace_max_range: 3.0
+      #     observation_persistence: 5.0
+
+      #   realsense_depth:
+      #     topic: /JeffCreate3/realsense2_camera/depth/color/points
+      #     data_type: "PointCloud2"
+      #     clearing: true
+      #     marking: true
+      #     min_obstacle_height: 0.02
+      #     max_obstacle_height: 0.60
+      #     obstacle_max_range: 3.0
+      #     raytrace_max_range: 3.5
+      #     observation_persistence: 5.0
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0          # Higher value = faster cost drop-off
+        inflation_radius: 0.55             # Reduced footprint buffer (40 cm)
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      update_frequency: 5.0
+      publish_frequency: 2.0
+      global_frame: odom
+      robot_base_frame: base_link
+      use_sim_time: false
+      rolling_window: true
+      width: 3
+      height: 3
+      resolution: 0.05
+      robot_radius: 0.18
+      transform_tolerance: 0.3
+      plugins: ["obstacle_layer", "inflation_layer"]
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        observation_sources: scan hazard_points realsense_depth
+
+        scan:
+          topic: /JeffCreate3/scan
+          data_type: "LaserScan"
+          clearing: true
+          marking: true
+          max_obstacle_height: 2.0
+          obstacle_max_range: 8.0
+          raytrace_max_range: 9.5
+          observation_persistence: 5.0
+
+        hazard_points:
+          topic: /JeffCreate3/hazard_points
+          data_type: "PointCloud2"
+          max_obstacle_height: 1.0
+          min_obstacle_height: -0.1
+          clearing: False         
+          marking: True
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+
+        realsense_depth:
+          topic: /JeffCreate3/costmap_cloud   # Downsampled topic
+          data_type: "PointCloud2"
+          marking: true
+          clearing: true
+          min_obstacle_height: 0.08           # Raised from 0.05 to avoid false floor hits on pitch/carpet
+          max_obstacle_height: 0.45           # Just under lidar height so they don't fight
+          obstacle_max_range: 2.0             # Limit range: camera depth noise spikes >2.0m
+          raytrace_max_range: 2.5
+          observation_persistence: 0.0        # Set to 0.0 so clearing clears moving legs/cleared zones
+
+        # realsense_depth:
+        #   topic: /JeffCreate3/realsense2_camera/depth/color/points
+        #   data_type: "PointCloud2"
+        #   marking: true
+        #   clearing: true
+        #   min_obstacle_height: 0.05
+        #   max_obstacle_height: 0.50
+        #   obstacle_max_range: 2.5
+        #   raytrace_max_range: 3.0
+        #   inf_is_valid: false
+        #   observation_persistence: 5.0
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 5.0          # Higher value = faster cost drop-off
+        inflation_radius: 0.35             # Reduced footprint buffer (40 cm)
+
+planner_server:
+  ros__parameters:
+    transform_tolerance: 2.0
+    expected_planner_frequency: 1.0
+    use_sim_time: false
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: "nav2_smac_planner::SmacPlanner2D"
+      tolerance: 0.5
+      downsample_costmap: false
+      allow_unknown: true
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      max_planning_time: 2.0
+      motion_model_for_search: "MOORE"     # CHANGED: "DUBIN" -> "MOORE" (differential-drive 8-connected grid)
+      cost_travel_multiplier: 2.0
+
+behavior_server:
+  ros__parameters:
+    use_sim_time: false
+    use_stamped_vel: false
+    transform_tolerance: 0.3
+    costmap_topic: local_costmap/costmap_raw
+    footprint_topic: local_costmap/published_footprint
+    cycle_frequency: 10.0
+    behavior_plugins: ["spin", "backup", "wait", "drive_on_heading", "assisted_teleop"]
+    spin:
+      plugin: "nav2_behaviors::Spin"
+    backup:
+      plugin: "nav2_behaviors::BackUp"
+    drive_on_heading:
+      plugin: "nav2_behaviors::DriveOnHeading"
+    wait:
+      plugin: "nav2_behaviors::Wait"
+    assisted_teleop:
+      plugin: "nav2_behaviors::AssistedTeleop"
+    global_frame: odom
+    robot_base_frame: base_link
+    transform_timeout: 2.0
+
+collision_monitor:
+  ros__parameters:
+    use_sim_time: false
+    use_stamped_vel: false
+    base_frame_id: "base_link"
+    odom_frame_id: "odom"
+    cmd_vel_in_topic: "cmd_vel_smoothed"
+    cmd_vel_out_topic: "cmd_vel"
+    transform_tolerance: 0.3
+    source_timeout: 2.0
+    base_shift_correction: true
+    stop_pub_timeout: 2.0
+    polygons: ["PolygonStop"]
+    PolygonStop:
+      type: "circle"
+      radius: 0.17                 # Tighter to the actual physical bumper rim
+      action_type: "stop"
+      min_points: 10                # CHANGED: 3 -> 5 (prevents single-beam noise from triggering an emergency stop)
+      visualize: true
+      polygon_pub_topic: "polygon_stop"
+    observation_sources: ["scan"] # ["scan", "hazard_points"] -> Create3 hazard stream is incidental not continuous. unsuitable. 
+    scan:
+      type: "scan"
+      topic: "/JeffCreate3/scan"
+    # hazard_points:
+    #   type: "pointcloud"
+    #   topic: /JeffCreate3/hazard_points
+    #   min_height: -0.05
+    #   max_height: 0.30
+
+docking_server:
+  ros__parameters:
+    use_sim_time: false
+    use_stamped_vel: false
+    transform_tolerance: 0.3
+    controller_frequency: 10.0
+    initial_perception_timeout: 5.0
+    wait_charge_timeout: 5.0
+    dock_approach_timeout: 30.0
+    undock_linear_tolerance: 0.05
+    undock_angular_tolerance: 0.1
+    max_retries: 3
+    base_frame: "base_link"
+    fixed_frame: "odom"
+    dock_backwards: false
+    dock_plugins: ['simple_charging_dock']
+    simple_charging_dock:
+      plugin: 'opennav_docking::SimpleChargingDock'
+      docking_threshold: 0.05
+      staging_x_offset: -0.7
+      use_external_detection_pose: false
+      use_battery_status: false
+      use_stall_detection: false

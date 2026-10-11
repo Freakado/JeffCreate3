@@ -1,0 +1,191 @@
+name: dds_eth_wifi_bridge
+from_domain: 0
+to_domain: 10
+
+topics:
+  # --- TF Transforms & Robot Model ---
+  JeffCreate3/tf:
+    type: tf2_msgs/msg/TFMessage
+
+  JeffCreate3/tf_static:
+    type: tf2_msgs/msg/TFMessage
+    qos:
+      durability: transient_local
+
+  JeffCreate3/robot_description:
+    type: std_msgs/msg/String
+    qos:
+      durability: transient_local
+
+  JeffCreate3/joint_states:
+    type: sensor_msgs/msg/JointState
+
+  # --- Sensors (Bandwidth Optimized) ---
+  JeffCreate3/scan:
+    type: sensor_msgs/msg/LaserScan
+
+  JeffCreate3/realsense2_camera/color/image_raw/compressed:
+    type: sensor_msgs/msg/CompressedImage
+
+  /JeffCreate3/realsense2_camera/aligned_depth_to_color/image_raw/compressedDepth:
+    type: sensor_msgs/msg/CompressedImage
+
+  JeffCreate3/realsense2_camera/color/camera_info:
+    type: sensor_msgs/msg/CameraInfo
+
+  # Downsampled obstacle cloud (<200 kbps vs 30 Mbps for raw depth)
+  JeffCreate3/costmap_cloud:
+    type: sensor_msgs/msg/PointCloud2
+
+  # Injected physical bumper/cliff points
+  JeffCreate3/hazard_points:
+    type: sensor_msgs/msg/PointCloud2
+
+  # --- Nav2 Costmaps & Trajectory Debugging ---
+  JeffCreate3/local_costmap/costmap:
+    type: nav_msgs/msg/OccupancyGrid
+
+  JeffCreate3/local_costmap/costmap_updates:
+    type: map_msgs/msg/OccupancyGridUpdate
+
+  JeffCreate3/global_costmap/costmap:
+    type: nav_msgs/msg/OccupancyGrid
+
+  JeffCreate3/global_costmap/costmap_updates:
+    type: map_msgs/msg/OccupancyGridUpdate
+
+  # Chosen path & evaluated trajectory arcs
+  JeffCreate3/local_plan:
+    type: nav_msgs/msg/Path
+
+  JeffCreate3/transformed_global_plan:
+    type: nav_msgs/msg/Path
+
+  JeffCreate3/plan:
+    type: nav_msgs/msg/Path
+
+  # DWB trajectory evaluation markers (shows green/red arc lines)
+  JeffCreate3/marker:
+    type: visualization_msgs/msg/MarkerArray
+
+  # Costmap evaluation grid
+  JeffCreate3/cost_cloud:
+    type: sensor_msgs/msg/PointCloud2
+
+  # --- Odometry & SLAM Map ---
+  JeffCreate3/odom:
+    type: nav_msgs/msg/Odometry
+
+  JeffCreate3/map:
+    type: nav_msgs/msg/OccupancyGrid
+
+  JeffCreate3/map_updates:
+    type: map_msgs/msg/OccupancyGridUpdate
+
+  # --- Markers & Safety Polygons ---
+  JeffCreate3/collision_monitor/collision_points_marker:
+    type: visualization_msgs/msg/MarkerArray
+
+  JeffCreate3/polygon_stop:
+    type: geometry_msgs/msg/PolygonStamped
+
+  JeffCreate3/local_costmap/published_footprint:
+    type: geometry_msgs/msg/PolygonStamped
+
+  JeffCreate3/global_costmap/published_footprint:
+    type: geometry_msgs/msg/PolygonStamped
+
+  JeffCreate3/artifact_markers:
+    type: visualization_msgs/msg/MarkerArray
+    qos:
+      reliability: reliable
+      durability: transient_local
+      history: keep_last
+      depth: 50
+
+  JeffCreate3/stack_points:
+    type: visualization_msgs/msg/MarkerArray
+    qos:
+      depth: 5
+
+  # --- Arbitration & Puzzle State ---
+  JeffCreate3/active_nav2:
+    type: std_msgs/msg/String
+    qos:
+      durability: transient_local
+
+  JeffCreate3/robot_help:
+    type: std_msgs/msg/String
+    qos:
+      reliability: reliable
+      durability: volatile
+      history: keep_last
+      depth: 10
+
+  JeffCreate3/clear_help:
+    type: std_msgs/msg/String
+    from_domain: 10
+    to_domain: 0
+    qos:
+      reliability: reliable
+      durability: volatile
+      history: keep_last
+      depth: 10
+
+  JeffCreate3/discovered_artifact:
+    type: std_msgs/msg/String
+
+  JeffCreate3/puzzle_solved:
+    type: std_msgs/msg/String
+    qos:
+      reliability: reliable
+      durability: volatile
+      history: keep_last
+      depth: 10
+
+  # --- Control Triggers (Laptop Domain 10 -> Robot Domain 0) ---
+  JeffCreate3/start_explore:
+    type: std_msgs/msg/String
+    from_domain: 10
+    to_domain: 0
+    qos:
+      reliability: reliable
+      durability: transient_local
+      history: keep_last
+      depth: 1
+
+  JeffCreate3/system_command:
+    type: std_msgs/msg/String
+    from_domain: 10
+    to_domain: 0
+    qos:
+      reliability: reliable
+      durability: volatile
+      history: keep_last
+      depth: 10
+
+  /rosout:
+    type: rcl_interfaces/msg/Log
+    from_domain: 0
+    to_domain: 10
+    qos:
+      reliability: reliable
+      durability: transient_local
+      history: keep_last
+      depth: 1000
+
+  # --- Interactive RViz Tools ---
+  JeffCreate3/initialpose:
+    type: geometry_msgs/msg/PoseWithCovarianceStamped
+    from_domain: 10
+    to_domain: 0
+
+  JeffCreate3/goal_pose:
+    type: geometry_msgs/msg/PoseStamped
+    from_domain: 10
+    to_domain: 0
+
+  JeffCreate3/clicked_point:
+    type: geometry_msgs/msg/PointStamped
+    from_domain: 10
+    to_domain: 0

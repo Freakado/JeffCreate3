@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artifact Puzzle</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #121212; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+    .card { background: #1e1e1e; border: 1px solid #333; padding: 2rem; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+    h1 { font-size: 1.5rem; color: #4ade80; margin-bottom: 0.5rem; }
+    p { color: #aaa; font-size: 0.95rem; }
+    input { width: 80%; padding: 12px; font-size: 1.2rem; text-align: center; border-radius: 6px; border: 1px solid #444; background: #2a2a2a; color: #fff; margin: 1.5rem 0; }
+    button { background: #22c55e; color: #000; font-weight: bold; border: none; padding: 12px 24px; font-size: 1rem; border-radius: 6px; cursor: pointer; width: 85%; }
+    button:hover { background: #16a34a; }
+    #status { margin-top: 1rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 id="title">Artifact Decryption</h1>
+    <p>Enter the override key to register this artifact:</p>
+    <p><i>Hint: The answer to life, the universe, and everything.</i></p>
+    <input type="text" id="answer" placeholder="Enter key..." autofocus />
+    <br />
+    <button onclick="submitSolution()">Submit Code</button>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    // Extract tag ID from URL parameters: ?tag=10
+    const urlParams = new URLSearchParams(window.location.search);
+    const tagId = parseInt(urlParams.get('tag')) || 10;
+    document.getElementById('title').innerText = `Artifact #${tagId}`;
+
+    async function submitSolution() {
+      const val = document.getElementById('answer').value;
+      const statusDiv = document.getElementById('status');
+      statusDiv.style.color = "#aaa";
+      statusDiv.innerText = "Verifying...";
+
+      try {
+        const resp = await fetch('/api/solve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tag_id: tagId, puzzle_name: "override_key", solution: val })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          statusDiv.style.color = "#4ade80";
+          statusDiv.innerText = "✔️ " + data.message;
+        } else {
+          statusDiv.style.color = "#f87171";
+          statusDiv.innerText = "❌ " + data.message;
+        }
+      } catch (err) {
+        statusDiv.style.color = "#f87171";
+        statusDiv.innerText = "Failed to reach robot server.";
+      }
+    }
+  </script>
+</body>
+</html>

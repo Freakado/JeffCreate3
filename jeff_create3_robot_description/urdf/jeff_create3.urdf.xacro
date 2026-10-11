@@ -1,0 +1,137 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="jeff_create3">
+
+  <!-- ================= BASE REFERENCE ================= -->
+  <!-- Anchored to the Create 3 base frame -->
+  <link name="base_link"/>
+
+  <!-- ================= LEVEL 1 (Payload Deck & Pi 5) ================= -->
+  <link name="level1_deck">
+    <visual>
+      <geometry>
+        <cylinder radius="0.16" length="0.005"/>
+      </geometry>
+      <material name="acrylic_clear">
+        <color rgba="0.9 0.9 0.9 0.4"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.16" length="0.005"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="base_to_level1" type="fixed">
+    <parent link="base_link"/>
+    <child link="level1_deck"/>
+    <origin xyz="0 0 0.08" rpy="0 0 3.14159"/>
+  </joint>
+
+  <!-- ================= PAN / TILT GIMBAL (Level 1 Front) ================= -->
+  <link name="pan_base_link">
+    <visual>
+      <geometry>
+        <box size="0.04 0.04 0.02"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="level1_to_pan_base" type="fixed">
+    <parent link="level1_deck"/>
+    <child link="pan_base_link"/>
+    <origin xyz="-0.12 0.0 0.01" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Pan Joint (Yaw - rotates around Z-axis) -->
+  <link name="pan_link">
+    <visual>
+      <geometry>
+        <cylinder radius="0.015" length="0.03"/>
+      </geometry>
+      <material name="grey">
+        <color rgba="0.3 0.3 0.3 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="pan_joint" type="revolute">
+    <parent link="pan_base_link"/>
+    <child link="pan_link"/>
+    <origin xyz="0 0 0.02" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.5708" upper="1.5708" effort="1.0" velocity="2.0"/>
+  </joint>
+
+  <!-- Tilt Joint (Pitch - rotates around Y-axis) -->
+  <link name="tilt_link">
+    <visual>
+      <geometry>
+        <box size="0.03 0.03 0.02"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+
+  <joint name="tilt_joint" type="revolute">
+    <parent link="pan_link"/>
+    <child link="tilt_link"/>
+    <origin xyz="0 0 0.03" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.7854" upper="0.7854" effort="1.0" velocity="2.0"/>
+  </joint>
+
+  <!-- RealSense D435i Mount Anchor -->
+  <link name="camera_link"/>
+
+  <joint name="tilt_to_camera" type="fixed">
+    <parent link="tilt_link"/>
+    <child link="camera_link"/>
+    <origin xyz="0.015 0.0 0.01" rpy="0 0 3.14159"/>
+  </joint>
+
+  <!-- ================= LEVEL 2 (Battery & Power Management) ================= -->
+  <link name="level2_deck">
+    <visual>
+      <geometry>
+        <box size="0.20 0.16 0.005"/>
+      </geometry>
+      <material name="acrylic_clear"/>
+    </visual>
+  </link>
+
+  <joint name="level1_to_level2" type="fixed">
+    <parent link="level1_deck"/>
+    <child link="level2_deck"/>
+    <origin xyz="-0.02 0 0.07" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ================= LEVEL 3 / TOP (RPLiDAR C1 Apex Mount) ================= -->
+  <link name="level3_deck">
+    <visual>
+      <geometry>
+        <cylinder radius="0.08" length="0.005"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+
+  <joint name="level2_to_level3" type="fixed">
+    <parent link="level2_deck"/>
+    <child link="level3_deck"/>
+    <origin xyz="0 0 0.08" rpy="0 0 0"/>
+  </joint>
+
+  <!-- RPLiDAR Optical Center Frame -->
+  <link name="laser"/>
+
+  <joint name="level3_to_laser" type="fixed">
+    <parent link="level3_deck"/>
+    <child link="laser"/>
+    <origin xyz="0 0 0.03" rpy="0 0 0"/>
+  </joint>
+
+</robot>

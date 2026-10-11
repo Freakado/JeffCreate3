@@ -1,0 +1,46 @@
+/**/ekf_filter_node:
+  ros__parameters:
+    use_sim_time: false
+    frequency: 20.0
+    sensor_timeout: 2.0
+    two_d_mode: true
+    transform_time_offset: 0.0
+    transform_timeout: 2.0
+    print_diagnostics: false
+    debug: false
+
+    # Coordinate Frames
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: odom
+
+    publish_tf: false # true // Let create3 publish well fused ODOM 
+    publish_acceleration: false
+
+    # Odometry Sensor Configuration (Create 3 Wheel Odometry)
+    # Fuse linear forward velocity (vx) and let EKF integrate position smoothly
+    odom0: odom
+    # [x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az]
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  false, false,
+                   false, false, true,
+                   false, false, false]
+    odom0_queue_size: 10
+    odom0_differential: false
+    odom0_relative: false
+
+    # IMU Sensor Configuration
+    # Only fuse angular velocity (vyaw / gyro rate). Never fuse raw ax on 2D base.
+    imu0: imu
+    # [x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az]
+    imu0_config: [false, false, false,
+                  false, false, false,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_queue_size: 10
+    imu0_differential: false
+    imu0_relative: false
+    imu0_remove_gravitational_acceleration: true

@@ -1,0 +1,38 @@
+name: dds_eth_usb_bridge
+from_domain: 1
+to_domain: 0
+
+topics:
+  # Create3 -> pi/nuc
+  JeffCreate3/odom:
+    type: nav_msgs/msg/Odometry
+    from_domain: 1
+    to_domain: 0
+
+  JeffCreate3/hazard_detection:
+    type: irobot_create_msgs/msg/HazardDetectionVector
+    from_domain: 1
+    to_domain: 0
+
+  JeffCreate3/battery_state:
+    type: sensor_msgs/msg/BatteryState
+    from_domain: 1
+    to_domain: 0
+
+  JeffCreate3/tf:
+    type: tf2_msgs/msg/TFMessage
+    from_domain: 1
+    to_domain: 0
+
+  JeffCreate3/tf_static:
+    type: tf2_msgs/msg/TFMessage
+    from_domain: 1
+    to_domain: 0
+    qos:
+      durability: transient_local
+
+  # pi/nuc -> Base
+  JeffCreate3/cmd_vel_stamped:
+    type: geometry_msgs/msg/TwistStamped
+    from_domain: 0
+    to_domain: 1

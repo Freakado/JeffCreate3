@@ -1,0 +1,61 @@
+/**:
+  ros__parameters:
+    publish_tf: true
+    tf_publish_rate: 0.0
+    diagnostics_period: 0.0
+
+    # --- Sensor Enables ---
+    enable_color: true
+    enable_depth: true
+    enable_infra: true
+    enable_infra1: false
+    enable_infra2: false
+    enable_gyro: true
+    enable_accel: true
+    unite_imu_method: 2
+
+    # --- RGB Camera Stream ---
+    rgb_camera:
+      profile: "640x480x30"
+      color_format: "RGB8"
+      frames_queue_size: 2,
+      auto_exposure_priority: false
+
+    # --- Depth Module ---
+    depth_module:
+      profile: "640x480x30"
+
+    color_qos: "SENSOR_DATA"
+    depth_qos: "SENSOR_DATA"
+    infra_qos: "SENSOR_DATA"
+    accel_qos: "SENSOR_DATA"
+    gyro_qos: "SENSOR_DATA"
+
+    # --- Disabled Compute Filters ---
+    pointcloud:
+      enable: true
+    align_depth:
+      enable: true
+    spatial_filter:
+      enable: false
+    temporal_filter:
+      enable: false
+    hole_filling_filter:
+      enable: false
+    decimation_filter:
+      enable: false
+
+    # # --- QoS Overrides (Drop Stale Frames) ---
+    # qos_overrides:
+    #   /JeffCreate3/realsense2_camera/color/image_raw/compressed:
+    #     publisher:
+    #       reliability: "best_effort"
+    #       durability: "volatile"
+    #       history: "keep_last"
+    #       depth: 1
+    #   /JeffCreate3/realsense2_camera/depth/image_rect_raw/compressed:
+    #     publisher:
+    #       reliability: "best_effort"
+    #       durability: "volatile"
+    #       history: "keep_last"
+    #       depth: 1

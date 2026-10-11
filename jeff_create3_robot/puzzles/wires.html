@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verification Override - Wire Patching</title>
+  <style>
+    :root {
+      --card-bg: #ffffff;
+      --page-bg: #121214;
+      --text-main: #1f2937;
+      --text-dim: #64748b;
+      --accent: #22c55e;
+      --accent-hover: #16a34a;
+      --error: #ef4444;
+
+      /* 6-Wire Industrial Color Palette */
+      --wire-red: #ef4444;
+      --wire-blue: #3b82f6;
+      --wire-yellow: #eab308;
+      --wire-green: #22c55e;
+      --wire-orange: #f97316;
+      --wire-magenta: #d946ef;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--page-bg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+      width: 100%;
+      max-width: 440px;
+      padding: 24px;
+      text-align: center;
+      user-select: none;
+    }
+
+    .badge {
+      display: inline-block;
+      background-color: #fef3c7;
+      color: #b45309;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    p.subtitle {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+    }
+
+    /* Interactive Wire Sandbox */
+    .wiring-box {
+      position: relative;
+      background-color: #1e222a;
+      border: 3px solid #374151;
+      border-radius: 8px;
+      height: 340px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .terminal-column {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      align-items: center;
+      z-index: 2;
+    }
+
+    .terminal-column.left { left: 10px; }
+    .terminal-column.right { right: 10px; }
+
+    .node {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 3px solid #111827;
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(0,0,0,0.5);
+      transition: transform 0.15s ease;
+    }
+
+    .node:hover { transform: scale(1.2); }
+    .node.active { outline: 3px solid #ffffff; transform: scale(1.2); }
+
+    .node.red { background-color: var(--wire-red); }
+    .node.blue { background-color: var(--wire-blue); }
+    .node.yellow { background-color: var(--wire-yellow); }
+    .node.green { background-color: var(--wire-green); }
+    .node.orange { background-color: var(--wire-orange); }
+    .node.magenta { background-color: var(--wire-magenta); }
+
+    /* SVG Overlay for Wires */
+    svg.wire-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    line.wire-line {
+      stroke-width: 6;
+      stroke-linecap: round;
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+    }
+
+    button.btn-submit {
+      width: 100%;
+      background-color: var(--accent);
+      color: #ffffff;
+      border: none;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button.btn-submit:hover:not(:disabled) { background-color: var(--accent-hover); }
+    button.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .status-msg {
+      margin-top: 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      min-height: 20px;
+    }
+
+    .status-msg.error { color: var(--error); }
+    .status-msg.success { color: #16a34a; }
+    .status-msg.loading { color: #d97706; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="badge" id="artifact-badge">Circuit Failure</div>
+  <h1>Circuit Patching</h1>
+  <p class="subtitle">Connect matching coloured terminals to proceed.</p>
+
+  <div class="wiring-box" id="box">
+    <svg class="wire-canvas" id="canvas"></svg>
+    <div class="terminal-column left" id="left-col"></div>
+    <div class="terminal-column right" id="right-col"></div>
+  </div>
+
+  <button class="btn-submit" id="submit-btn" onclick="submitWires()">Verify Connections</button>
+  <div class="status-msg" id="status-msg"></div>
+</div>
+
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  const tagId = parseInt(urlParams.get('tag') || '12', 10);
+  document.getElementById('artifact-badge').textContent = `Artifact #${tagId}`;
+
+  const COLOR_HEX = {
+    red: '#ef4444',
+    blue: '#3b82f6',
+    yellow: '#eab308',
+    green: '#22c55e',
+    orange: '#f97316',
+    magenta: '#d946ef'
+  };
+
+  let leftTerminals = [];
+  let rightTerminals = [];
+  let connections = {}; // leftIndex -> rightIndex
+  let selectedLeft = null;
+
+  async function loadPuzzle() {
+    const status = document.getElementById('status-msg');
+    status.className = 'status-msg loading';
+    status.textContent = 'Calibrating circuit junction...';
+
+    try {
+      const resp = await fetch(`/api/puzzle_data/${tagId}?type=wires`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+
+      leftTerminals = data.left_terminals;
+      rightTerminals = data.right_terminals;
+      renderTerminals();
+      status.textContent = '';
+    } catch (err) {
+      status.className = 'status-msg error';
+      status.textContent = `Error: ${err.message}`;
+      document.getElementById('submit-btn').disabled = true;
+    }
+  }
+
+  function renderTerminals() {
+    const leftCol = document.getElementById('left-col');
+    const rightCol = document.getElementById('right-col');
+    leftCol.innerHTML = '';
+    rightCol.innerHTML = '';
+    connections = {};
+
+    leftTerminals.forEach((color, idx) => {
+      const node = document.createElement('div');
+      node.className = `node ${color}`;
+      node.dataset.idx = idx;
+      node.addEventListener('click', () => onLeftClick(idx, node));
+      leftCol.appendChild(node);
+    });
+
+    rightTerminals.forEach((color, idx) => {
+      const node = document.createElement('div');
+      node.className = `node ${color}`;
+      node.dataset.idx = idx;
+      node.addEventListener('click', () => onRightClick(idx));
+      rightCol.appendChild(node);
+    });
+
+    redrawWires();
+  }
+
+  function onLeftClick(idx, nodeElement) {
+    document.querySelectorAll('.terminal-column.left .node').forEach(n => n.classList.remove('active'));
+    selectedLeft = idx;
+    nodeElement.classList.add('active');
+  }
+
+  function onRightClick(rIdx) {
+    if (selectedLeft === null) return;
+
+    // Remove any previous left connection to this right terminal to avoid multi-mapping
+    for (const [l, r] of Object.entries(connections)) {
+      if (r === rIdx) {
+        delete connections[l];
+      }
+    }
+
+    // Connect current selection
+    connections[selectedLeft] = rIdx;
+
+    document.querySelectorAll('.terminal-column.left .node').forEach(n => n.classList.remove('active'));
+    selectedLeft = null;
+    redrawWires();
+  }
+
+  function getNodeCenter(nodeElement) {
+    const box = document.getElementById('box').getBoundingClientRect();
+    const rect = nodeElement.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width / 2 - box.left,
+      y: rect.top + rect.height / 2 - box.top
+    };
+  }
+
+  function redrawWires() {
+    const canvas = document.getElementById('canvas');
+    canvas.innerHTML = '';
+
+    const leftNodes = document.querySelectorAll('.terminal-column.left .node');
+    const rightNodes = document.querySelectorAll('.terminal-column.right .node');
+
+    for (const [lIdx, rIdx] of Object.entries(connections)) {
+      const start = getNodeCenter(leftNodes[lIdx]);
+      const end = getNodeCenter(rightNodes[rIdx]);
+      const color = leftTerminals[lIdx];
+
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', start.x);
+      line.setAttribute('y1', start.y);
+      line.setAttribute('x2', end.x);
+      line.setAttribute('y2', end.y);
+      line.setAttribute('class', 'wire-line');
+      line.setAttribute('stroke', COLOR_HEX[color]);
+
+      canvas.appendChild(line);
+    }
+  }
+
+  async function submitWires() {
+    const status = document.getElementById('status-msg');
+    const submitBtn = document.getElementById('submit-btn');
+
+    if (Object.keys(connections).length < leftTerminals.length) {
+      status.className = 'status-msg error';
+      status.textContent = 'Connect all wires before submitting!';
+      return;
+    }
+
+    const solutionStr = Object.keys(connections)
+      .sort((a, b) => a - b)
+      .map(l => `${l}:${connections[l]}`)
+      .join(',');
+
+    status.className = 'status-msg loading';
+    status.textContent = 'Testing circuit continuity...';
+    submitBtn.disabled = true;
+
+    try {
+      const resp = await fetch('/api/solve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tag_id: tagId,
+          puzzle_name: 'logic_wires',
+          solution: solutionStr
+        })
+      });
+
+      const result = await resp.json();
+
+      if (result.success) {
+        status.className = 'status-msg success';
+        status.textContent = `✔ ${result.message}`;
+      } else {
+        status.className = 'status-msg error';
+        status.textContent = `❌ ${result.message}`;
+        submitBtn.disabled = false;
+      }
+    } catch (err) {
+      status.className = 'status-msg error';
+      status.textContent = `Network error: ${err.message}`;
+      submitBtn.disabled = false;
+    }
+  }
+
+  window.addEventListener('resize', redrawWires);
+  loadPuzzle();
+</script>
+
+</body>
+</html>

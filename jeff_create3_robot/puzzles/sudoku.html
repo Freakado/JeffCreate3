@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verification Override - 4x4 Sudoku</title>
+  <style>
+    :root {
+      --card-bg: #ffffff;
+      --page-bg: #121214;
+      --text-main: #344861;
+      --text-user: #0072e3;
+      --border-thin: #bfc6d0;
+      --border-thick: #344861;
+      
+      /* sudoku.com type theme */
+      --cell-bg: #ffffff;
+      --cell-highlight: #e2ebf3;       /* same row, col, block */
+      --cell-selected: #b9dcfe;        /* active cell */
+      --cell-match: #c3dcf5;           /* same numbers highlighted */
+      
+      --accent: #22c55e;
+      --accent-hover: #16a34a;
+      --error: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--page-bg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+      width: 100%;
+      max-width: 420px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-block;
+      background-color: #e6f9ed;
+      color: #15803d;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      color: #1f2937;
+      margin-bottom: 4px;
+    }
+
+    p.subtitle {
+      color: #64748b;
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+    }
+
+    /* Classic Sudoku Board: 4x4 Grid */
+    .sudoku-board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      width: 280px;
+      height: 280px;
+      margin: 0 auto 20px auto;
+      border: 3px solid var(--border-thick);
+      background-color: var(--border-thin);
+      gap: 1px;
+      user-select: none;
+    }
+
+    .cell {
+      background-color: var(--cell-bg);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2rem;
+      font-weight: 400;
+      cursor: pointer;
+      outline: none;
+      transition: background-color 0.1s ease;
+    }
+
+    /* Block dividing boundaries (Thick borders for 2x2 blocks) */
+    .cell[data-col="1"] {
+      border-right: 2px solid var(--border-thick);
+    }
+    .cell[data-row="1"] {
+      border-bottom: 2px solid var(--border-thick);
+    }
+
+    /* Cell State Colors */
+    .cell.highlighted {
+      background-color: var(--cell-highlight);
+    }
+
+    .cell.match {
+      background-color: var(--cell-match);
+      font-weight: 500;
+    }
+
+    .cell.selected {
+      background-color: var(--cell-selected) !important;
+    }
+
+    .cell.editable {
+      color: var(--text-user);
+      font-weight: 500;
+    }
+
+    .cell.invalid {
+      background-color: #fee2e2 !important;
+    }
+
+    /* Buttons & Feedback */
+    button.btn-submit {
+      width: 100%;
+      background-color: var(--accent);
+      color: #ffffff;
+      border: none;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button.btn-submit:hover:not(:disabled) {
+      background-color: var(--accent-hover);
+    }
+
+    button.btn-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status-msg {
+      margin-top: 14px;
+      font-size: 0.9rem;
+      min-height: 20px;
+      font-weight: 600;
+    }
+
+    .status-msg.error { color: var(--error); }
+    .status-msg.success { color: #16a34a; }
+    .status-msg.loading { color: #d97706; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="badge" id="artifact-badge">Artifact Verification</div>
+  <h1>Cognitive Task: 4x4 Sudoku</h1>
+  <p class="subtitle">Fill digits 1 to 4 into each row, column, and 2x2 box.</p>
+
+  <div class="sudoku-board" id="board" tabindex="0">
+    <!-- 16 cells injected dynamically -->
+  </div>
+
+  <button class="btn-submit" id="submit-btn" onclick="submitVerification()">Submit Verification</button>
+  <div class="status-msg" id="status-msg"></div>
+</div>
+
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  const tagId = parseInt(urlParams.get('tag') || '10', 10);
+  document.getElementById('artifact-badge').textContent = `Artifact #${tagId}`;
+
+  let boardState = []; // 4x4 matrix
+  let initialClues = []; // Boolean tracking fixed vs editable
+  let selectedCell = null; // { r, c }
+
+  async function loadPuzzle() {
+    const status = document.getElementById('status-msg');
+    status.className = 'status-msg loading';
+    status.textContent = 'Loading challenge...';
+
+    try {
+      const resp = await fetch(`/api/puzzle_data/${tagId}?type=sudoku`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      
+      initBoard(data.grid);
+      status.textContent = '';
+    } catch (err) {
+      status.className = 'status-msg error';
+      status.textContent = `Error loading puzzle: ${err.message}`;
+      document.getElementById('submit-btn').disabled = true;
+    }
+  }
+
+  function initBoard(grid) {
+    boardState = JSON.parse(JSON.stringify(grid));
+    initialClues = grid.map(row => row.map(cell => cell !== 0));
+    
+    renderBoard();
+    
+    // Auto-select first editable cell
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (!initialClues[r][c]) {
+          selectCell(r, c);
+          return;
+        }
+      }
+    }
+  }
+
+  function renderBoard() {
+    const container = document.getElementById('board');
+    container.innerHTML = '';
+
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.row = r;
+        cell.dataset.col = c;
+
+        const val = boardState[r][c];
+        cell.textContent = val !== 0 ? val : '';
+
+        if (!initialClues[r][c]) {
+          cell.classList.add('editable');
+        }
+
+        cell.addEventListener('click', () => selectCell(r, c));
+        container.appendChild(cell);
+      }
+    }
+  }
+
+  function selectCell(r, c) {
+    selectedCell = { r, c };
+    updateHighlights();
+  }
+
+  function updateHighlights() {
+    if (!selectedCell) return;
+    const { r: selR, c: selC } = selectedCell;
+    const selectedVal = boardState[selR][selC];
+    
+    const blockR = Math.floor(selR / 2);
+    const blockC = Math.floor(selC / 2);
+
+    const cells = document.querySelectorAll('.cell');
+    cells.forEach(el => {
+      const r = parseInt(el.dataset.row, 10);
+      const c = parseInt(el.dataset.col, 10);
+      const val = boardState[r][c];
+
+      el.classList.remove('selected', 'highlighted', 'match', 'invalid');
+
+      // Same cell selected
+      if (r === selR && c === selC) {
+        el.classList.add('selected');
+        return;
+      }
+
+      // Matching number highlighted across the board
+      if (selectedVal !== 0 && val === selectedVal) {
+        el.classList.add('match');
+      } 
+      // Same row, column, or 2x2 sub-block
+      else if (
+        r === selR || 
+        c === selC || 
+        (Math.floor(r / 2) === blockR && Math.floor(c / 2) === blockC)
+      ) {
+        el.classList.add('highlighted');
+      }
+    });
+  }
+
+  // Keyboard navigation & number input
+  window.addEventListener('keydown', (e) => {
+    if (!selectedCell) return;
+    const { r, c } = selectedCell;
+
+    // Numbers 1 to 4
+    if (['1', '2', '3', '4'].includes(e.key)) {
+      if (!initialClues[r][c]) {
+        boardState[r][c] = parseInt(e.key, 10);
+        updateCellDom(r, c, e.key);
+        updateHighlights();
+      }
+    }
+    // Clear cell
+    else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
+      if (!initialClues[r][c]) {
+        boardState[r][c] = 0;
+        updateCellDom(r, c, '');
+        updateHighlights();
+      }
+    }
+    // Arrow navigation
+    else if (e.key === 'ArrowUp') selectCell((r + 3) % 4, c);
+    else if (e.key === 'ArrowDown') selectCell((r + 1) % 4, c);
+    else if (e.key === 'ArrowLeft') selectCell(r, (c + 3) % 4);
+    else if (e.key === 'ArrowRight') selectCell(r, (c + 1) % 4);
+  });
+
+  function updateCellDom(r, c, text) {
+    const el = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+    if (el) el.textContent = text;
+  }
+
+  async function submitVerification() {
+    const status = document.getElementById('status-msg');
+    const submitBtn = document.getElementById('submit-btn');
+
+    // Collect solution in row-major reading order of empty cells
+    let solutionStr = '';
+    let hasEmpty = false;
+
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (!initialClues[r][c]) {
+          const val = boardState[r][c];
+          if (val === 0) {
+            hasEmpty = true;
+            const el = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+            if (el) el.classList.add('invalid');
+          } else {
+            solutionStr += val.toString();
+          }
+        }
+      }
+    }
+
+    if (hasEmpty) {
+      status.className = 'status-msg error';
+      status.textContent = 'Please fill all empty squares before submitting.';
+      return;
+    }
+
+    status.className = 'status-msg loading';
+    status.textContent = 'Validating solution with robot...';
+    submitBtn.disabled = true;
+
+    try {
+      const resp = await fetch('/api/solve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tag_id: tagId,
+          puzzle_name: 'sudoku_4x4',
+          solution: solutionStr
+        })
+      });
+
+      const result = await resp.json();
+
+      if (result.success) {
+        status.className = 'status-msg success';
+        status.textContent = `✔ ${result.message}`;
+      } else {
+        status.className = 'status-msg error';
+        status.textContent = `❌ ${result.message}`;
+        submitBtn.disabled = false;
+      }
+    } catch (err) {
+      status.className = 'status-msg error';
+      status.textContent = `Network error: ${err.message}`;
+      submitBtn.disabled = false;
+    }
+  }
+
+  loadPuzzle();
+</script>
+
+</body>
+</html>
